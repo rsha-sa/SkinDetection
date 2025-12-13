@@ -1,0 +1,15 @@
+streamlit
+torch
+torchvision
+opencv-python-headless
+numpy
+Pillow
+matplotlib
+segmentation-models-pytorch
+transformers
+albumentations
+ultralytics
+scikit-learn
+joblib
+scikit-image
+flask

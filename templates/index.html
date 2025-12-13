@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DermaCare AI - Early Skin Detection</title>
+  <style>
+    /* --- CORE STYLES --- */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #ffe4d6 0%, #ffd4c9 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+      color: #1a1a1a;
+    }
+
+    /* HERO SECTION */
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 100vh;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 40px 60px;
+      gap: 80px;
+      align-items: center;
+    }
+
+    .left-content {
+      max-width: 600px;
+    }
+
+    h1 {
+      font-size: 72px;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 30px;
+      color: #1a1a1a;
+    }
+
+    .ai-text {
+      color: #1a1a1a;
+    }
+
+    .subtitle {
+      font-size: 20px;
+      color: #64748b;
+      line-height: 1.6;
+      margin-bottom: 40px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .upload-btn {
+      background: linear-gradient(135deg, #d66d75 0%, #c85a54 100%);
+      color: white;
+      border: none;
+      padding: 18px 36px;
+      border-radius: 50px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 10px 30px rgba(200, 90, 84, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .upload-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px rgba(200, 90, 84, 0.4);
+    }
+
+    .learn-btn {
+      background: white;
+      color: #1a1a1a;
+      border: 2px solid #e2e8f0;
+      padding: 16px 32px;
+      border-radius: 50px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.3s ease;
+    }
+
+    .learn-btn:hover {
+      border-color: #cbd5e1;
+      background: #f8fafc;
+    }
+
+    /* VISUALIZATION */
+    .right-content {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .visualization-container {
+      position: relative;
+      width: 100%;
+      max-width: 600px;
+      aspect-ratio: 1;
+    }
+
+    .grid-background {
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(#f5c4b8 1px, transparent 1px), linear-gradient(90deg, #f5c4b8 1px, transparent 1px);
+      background-size: 60px 60px;
+      border-radius: 40px;
+      opacity: 0.5;
+    }
+
+    .lesion-circle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+    }
+
+    .outer-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, rgba(245, 196, 184, 0.3) 0%, rgba(245, 196, 184, 0.15) 100%);
+      animation: ringPulse 4s ease-in-out infinite;
+    }
+
+    .middle-ring {
+      position: absolute;
+      inset: 40px;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, rgba(230, 142, 130, 0.5) 0%, rgba(230, 142, 130, 0.3) 100%);
+      animation: ringPulse 4s ease-in-out infinite 0.3s;
+    }
+
+    .inner-circle {
+      position: absolute;
+      inset: 80px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #f5c4b8 0%, #e68e82 50%, #d66d75 100%);
+      box-shadow: 0 10px 30px rgba(230, 142, 130, 0.4), inset 0 -10px 20px rgba(214, 109, 117, 0.3);
+      animation: ringPulse 4s ease-in-out infinite 0.6s;
+    }
+
+    @keyframes ringPulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+
+      50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+      }
+    }
+
+    .detection-point {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: #d66d75;
+      border: 3px solid white;
+      border-radius: 50%;
+      box-shadow: 0 4px 12px rgba(214, 109, 117, 0.5);
+      animation: pointPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pointPulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+
+      50% {
+        transform: scale(1.3);
+        opacity: 0.8;
+      }
+    }
+
+    .point-1 {
+      top: 35%;
+      left: 45%;
+      animation-delay: 0s;
+    }
+
+    .point-2 {
+      top: 50%;
+      left: 60%;
+      animation-delay: 0.5s;
+      background: #c85a54;
+    }
+
+    .point-3 {
+      top: 65%;
+      left: 50%;
+      animation-delay: 1s;
+      background: #b94a44;
+    }
+
+    .point-4 {
+      top: 48%;
+      left: 35%;
+      animation-delay: 1.5s;
+      background: #e68e82;
+    }
+
+    .corner-frame {
+      position: absolute;
+      border: 3px solid #d66d75;
+      opacity: 0.6;
+    }
+
+    .frame-tl {
+      top: 10%;
+      left: 10%;
+      width: 80px;
+      height: 80px;
+      border-right: none;
+      border-bottom: none;
+      border-radius: 20px 0 0 0;
+    }
+
+    .frame-tr {
+      top: 10%;
+      right: 10%;
+      width: 80px;
+      height: 80px;
+      border-left: none;
+      border-bottom: none;
+      border-radius: 0 20px 0 0;
+    }
+
+    .frame-br {
+      bottom: 10%;
+      right: 10%;
+      width: 80px;
+      height: 80px;
+      border-left: none;
+      border-top: none;
+      border-radius: 0 0 20px 0;
+    }
+
+    .floating-indicator {
+      position: absolute;
+      top: 15%;
+      right: 5%;
+      background: white;
+      padding: 16px 20px;
+      border-radius: 50px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateY(0px);
+      }
+
+      50% {
+        transform: translateY(-10px);
+      }
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    .status-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .confidence-card {
+      position: absolute;
+      bottom: 5%;
+      left: 0%;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      border-radius: 20px;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+      width: 280px;
+      animation: slideUp 1s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .stat-header {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 15px;
+      border-bottom: 2px solid #f1f5f9;
+      padding-bottom: 8px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .stat-val {
+      font-size: 14px;
+      font-weight: 800;
+      color: #c85a54;
+    }
+
+    .stat-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .stat-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #d66d75 0%, #c85a54 100%);
+      border-radius: 10px;
+    }
+
+    /* --- CONTENT CARD --- */
+    .content-card {
+      max-width: 1400px;
+      margin: -40px auto 40px;
+      background: white;
+      border-radius: 40px;
+      box-shadow: 0 20px 60px rgba(200, 90, 84, 0.1);
+      position: relative;
+      z-index: 10;
+      padding: 80px 60px;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .section-header h2 {
+      font-size: 42px;
+      font-weight: 800;
+      color: #1a1a1a;
+      margin-bottom: 20px;
+    }
+
+    .section-header p {
+      font-size: 18px;
+      color: #64748b;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 30px;
+      margin-bottom: 60px;
+    }
+
+    .step-item {
+      background: #fff5f2;
+      padding: 30px;
+      border-radius: 20px;
+      text-align: center;
+      transition: all 0.3s ease;
+      border: 1px solid #ffc4b8;
+    }
+
+    .step-item:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(200, 90, 84, 0.15);
+    }
+
+    .step-icon {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, #d66d75 0%, #c85a54 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+      margin: 0 auto 20px;
+      box-shadow: 0 8px 20px rgba(200, 90, 84, 0.3);
+      font-weight: 800;
+    }
+
+    .step-item h3 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #1a1a1a;
+    }
+
+    .step-item p {
+      color: #64748b;
+      line-height: 1.6;
+    }
+
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(to right, transparent, #e2e8f0, transparent);
+      margin: 60px 0;
+    }
+
+    /* --- ANALYSIS DASHBOARD --- */
+    .analysis-area {
+      display: block;
+      animation: slideDown 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .analysis-container {
+      display: flex;
+      gap: 50px;
+    }
+
+    .analysis-left {
+      flex: 0.35;
+    }
+
+    .analysis-right {
+      flex: 0.65;
+    }
+
+    .upload-zone {
+      background: #fff;
+      padding: 30px;
+      border-radius: 25px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+      margin-bottom: 20px;
+      border: 2px dashed #ffc4b8;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      min-height: 350px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .upload-zone:hover {
+      border-color: #c85a54;
+      background: #fffbf9;
+    }
+
+    .upload-icon-svg {
+      width: 64px;
+      height: 64px;
+      color: #c85a54;
+      margin-bottom: 15px;
+    }
+
+    .upload-text-main {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 5px;
+    }
+
+    .upload-text-sub {
+      font-size: 14px;
+      color: #64748b;
+    }
+
+    .preview-image {
+      max-width: 100%;
+      max-height: 350px;
+      width: auto;
+      border-radius: 15px;
+      display: none;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+      object-fit: contain;
+    }
+
+    .reset-btn {
+      width: 100%;
+      margin-top: 15px;
+      padding: 12px;
+      background: white;
+      border: 2px solid #e2e8f0;
+      color: #64748b;
+      border-radius: 50px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .reset-btn:hover {
+      border-color: #c85a54;
+      color: #c85a54;
+      background: #fff5f2;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 10px 20px;
+      border-radius: 50px;
+      background: #f1f5f9;
+      color: #64748b;
+      font-weight: 700;
+      font-size: 14px;
+      margin-top: 15px;
+      border: 1px solid #e2e8f0;
+      width: 100%;
+      text-align: center;
+    }
+
+    .status-badge.processing {
+      background: #fff7ed;
+      color: #ea580c;
+      border: 1px solid #fdba74;
+    }
+
+    .status-badge.complete {
+      background: #f0fdf4;
+      color: #16a34a;
+      border: 1px solid #86efac;
+    }
+
+    .privacy-note {
+      margin-top: 20px;
+      padding: 20px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      display: flex;
+      gap: 15px;
+      align-items: flex-start;
+    }
+
+    .privacy-icon {
+      width: 24px;
+      height: 24px;
+      color: #10b981;
+      flex-shrink: 0;
+    }
+
+    .privacy-content h4 {
+      color: #1e293b;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .privacy-content p {
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .result-tabs {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 30px;
+      background: #f8fafc;
+      padding: 8px;
+      border-radius: 20px;
+    }
+
+    .result-tab {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      border-radius: 15px;
+      cursor: pointer;
+      font-weight: 700;
+      color: #64748b;
+      transition: all 0.3s ease;
+    }
+
+    .result-tab.active {
+      background: white;
+      color: #c85a54;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .result-box {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 25px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    }
+
+    .result-box h3 {
+      color: #1a1a1a;
+      margin-bottom: 20px;
+      font-size: 20px;
+      border-bottom: 2px solid #f1f5f9;
+      padding-bottom: 10px;
+    }
+
+    .consensus-card {
+      border-left: 5px solid #e2e8f0;
+      background: linear-gradient(to right, #fafafa, #fff);
+      transition: all 0.3s;
+    }
+
+    .consensus-card.active {
+      border-left-color: #c85a54;
+      background: linear-gradient(to right, #fff5f2, #fff);
+    }
+
+    .consensus-val {
+      font-size: 32px;
+      font-weight: 800;
+      color: #9ca3af;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .consensus-val.active {
+      color: #1a1a1a;
+    }
+
+    .risk-badge {
+      font-size: 14px;
+      padding: 5px 12px;
+      border-radius: 50px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+      vertical-align: middle;
+      display: none;
+    }
+
+    .risk-badge.malignant {
+      display: inline-block;
+      background: #fee2e2;
+      color: #ef4444;
+      border: 1px solid #fca5a5;
+    }
+
+    .risk-badge.benign {
+      display: inline-block;
+      background: #dcfce7;
+      color: #16a34a;
+      border: 1px solid #86efac;
+    }
+
+    .consensus-sub {
+      font-size: 16px;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .model-selector-container {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
+
+    .model-select {
+      padding: 10px 15px;
+      border-radius: 12px;
+      border: 2px solid #e2e8f0;
+      background: white;
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      outline: none;
+      transition: border 0.2s;
+    }
+
+    .model-select:hover {
+      border-color: #c85a54;
+    }
+
+    .single-view {
+      position: relative;
+      text-align: center;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #fafafa;
+      border-radius: 15px;
+      min-height: 400px;
+    }
+
+    .single-view img.base-image {
+      max-width: 100%;
+      max-height: 500px;
+      width: auto;
+      object-fit: contain;
+      border-radius: 15px;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .layer-image {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 100%;
+      max-height: 500px;
+      width: auto;
+      object-fit: contain;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .layer-image.visible {
+      opacity: 1;
+    }
+
+    .empty-placeholder {
+      padding: 40px;
+      color: #94a3b8;
+      background: #f8fafc;
+      border-radius: 15px;
+      border: 2px dashed #e2e8f0;
+      width: 100%;
+    }
+
+    .vote-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #f1f5f9;
+      align-items: center;
+    }
+
+    .vote-row:last-child {
+      border-bottom: none;
+    }
+
+    .vote-model {
+      font-weight: 700;
+      color: #475569;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .vote-dot {
+      width: 8px;
+      height: 8px;
+      background: #cbd5e1;
+      border-radius: 50%;
+    }
+
+    .vote-res {
+      font-weight: 600;
+      color: #94a3b8;
+      background: #f8fafc;
+      padding: 5px 15px;
+      border-radius: 10px;
+      font-size: 14px;
+      text-align: right;
+    }
+
+    .vote-dot.active {
+      background: #c85a54;
+    }
+
+    .vote-res.active {
+      color: #1a1a1a;
+      background: #fff5f2;
+    }
+
+    .vote-sub {
+      display: block;
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 2px;
+      font-weight: 500;
+    }
+
+    .checkbox-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      background: #f8fafc;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .checkbox-item:hover {
+      background: #f1f5f9;
+    }
+
+    .checkbox-item input {
+      margin-right: 12px;
+      width: 18px;
+      height: 18px;
+      accent-color: #c85a54;
+    }
+
+    .checkbox-label {
+      font-weight: 600;
+      color: #475569;
+      flex: 1;
+    }
+
+    .color-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-left: auto;
+    }
+
+    .disclaimer {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 16px 32px;
+      border-radius: 50px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      font-size: 13px;
+      color: #64748b;
+      max-width: 600px;
+      text-align: center;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .disclaimer-icon {
+      width: 16px;
+      height: 16px;
+      color: #c85a54;
+    }
+
+    @media (max-width: 1024px) {
+      .container {
+        grid-template-columns: 1fr;
+        padding: 40px 30px;
+        gap: 60px;
+        min-height: auto;
+      }
+
+      .right-content {
+        order: -1;
+      }
+
+      .analysis-container {
+        flex-direction: column;
+      }
+
+      .content-card {
+        padding: 40px 30px;
+      }
+
+      h1 {
+        font-size: 56px;
+      }
+    }
+
+    /* Mobile Phone (Max Width 600px) */
+    @media (max-width: 600px) {
+      .container {
+        grid-template-columns: 1fr;
+        padding: 20px 15px;
+      }
+
+      /* HERO TEXT */
+      h1 {
+        font-size: 40px;
+        margin-bottom: 20px;
+      }
+
+      .subtitle {
+        font-size: 16px;
+        margin-bottom: 30px;
+      }
+
+      .button-group {
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .upload-btn,
+      .learn-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 14px 20px;
+        font-size: 16px;
+      }
+
+      /* --- VISUALIZATION SECTION FIX: RESERVE HEIGHT --- */
+
+      .right-content {
+        /* Set the visualization to appear first on mobile */
+        order: -1;
+        display: flex;
+        flex-direction: column;
+        /* Stack children vertically */
+        align-items: center;
+        padding-bottom: 0;
+      }
+
+      .visualization-container {
+        /* Set explicit size using VW (for responsiveness) */
+        width: 90vw;
+        height: 90vw;
+        max-width: 350px;
+        max-height: 350px;
+        margin: 0 auto;
+        background: none;
+        /* IMPORTANT: Ensure the visualization area is reserved */
+        position: relative;
+      }
+
+      .lesion-circle {
+        width: 200px;
+        height: 200px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        /* Re-center the absolute elements */
+      }
+
+      .middle-ring {
+        inset: 20px;
+      }
+
+      .inner-circle {
+        inset: 40px;
+      }
+
+      /* CONFIDENCE CARD FIX: REVERT TO STATIC FLOW */
+      .confidence-card {
+        /* Make the card VISIBLE */
+        display: block !important;
+        /* Force into the normal document flow */
+        position: static !important;
+        /* Remove overlap risks */
+        bottom: auto !important;
+        left: auto !important;
+
+        width: 100%;
+        margin-top: 20px;
+        /* Space it below the visualization container */
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      }
+
+      .floating-indicator,
+      .corner-frame {
+        display: none;
+      }
+
+      /* REPORT SECTION */
+      .content-card {
+        margin-top: 20px;
+        border-radius: 20px;
+        padding: 30px 20px;
+      }
+
+      .section-header h2 {
+        font-size: 30px;
+      }
+
+      .section-header p {
+        font-size: 16px;
+      }
+
+      .result-tabs {
+        flex-wrap: wrap;
+        gap: 5px;
+        padding: 5px;
+      }
+
+      .result-tab {
+        padding: 10px 15px;
+        font-size: 14px;
+      }
+
+      .result-box {
+        padding: 20px;
+      }
+
+      /* DISCLAIMER */
+      .disclaimer {
+        bottom: 10px;
+        padding: 10px 20px;
+        max-width: 90%;
+        font-size: 11px;
+        border-radius: 30px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <div class="left-content">
+      <h1>Early Skin<br>Detection<br>Powered by<br><span class="ai-text" style="color:#c85a54;">AI</span></h1>
+      <p class="subtitle">Upload a photo of your skin lesion and receive instant detection, segmentation, and
+        classification.</p>
+      <div class="button-group">
+        <button class="upload-btn" onclick="scrollToUpload()">
+          Start Analysis <span>→</span>
+        </button>
+        <button class="learn-btn" onclick="scrollToSection('main-content')">Learn More</button>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFileSelect(this)">
+    </div>
+
+    <div class="right-content">
+        <div class="visualization-container">
+            <div class="grid-background"></div>
+            <div class="corner-frame frame-tl"></div>
+            <div class="corner-frame frame-tr"></div>
+            <div class="corner-frame frame-br"></div>
+            <div class="lesion-circle">
+                <div class="outer-ring"></div>
+                <div class="middle-ring"></div>
+                <div class="inner-circle">
+                    <div class="detection-point point-1"></div>
+                    <div class="detection-point point-2"></div>
+                    <div class="detection-point point-3"></div>
+                    <div class="detection-point point-4"></div>
+                </div>
+            </div>
+            <div class="floating-indicator">
+                <div class="status-dot"></div><span class="status-text">System Ready</span>
+            </div>
+            
+            </div>
+
+        <div class="confidence-card">
+            <div class="stat-header">Model Accuracy</div>
+            <div class="stat-row"><span class="stat-label">Segmentation</span><span class="stat-val">92.5%</span></div>
+            <div class="stat-bar-bg">
+                <div class="stat-bar-fill" style="width: 92.5%"></div>
+            </div>
+            <div class="stat-row"><span class="stat-label">Detection</span><span class="stat-val">88.3%</span>
+            </div>
+            <div class="stat-bar-bg">
+                <div class="stat-bar-fill" style="width: 88.3%"></div>
+            </div>
+            <div class="stat-row"><span class="stat-label">Classification</span><span class="stat-val">86.9%</span></div>
+            <div class="stat-bar-bg">
+                <div class="stat-bar-fill" style="width: 86.9%"></div>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <div id="main-content" class="content-card">
+    <div class="section-header">
+      <h2>How It Works</h2>
+      <p>Our advanced AI pipeline analyzes skin lesions using three distinct methods.</p>
+    </div>
+
+    <div class="steps-grid">
+      <div class="step-item">
+        <div class="step-icon">1</div>
+        <h3>Upload Image</h3>
+        <p>Take a clear, well-lit photo of the skin lesion.</p>
+      </div>
+      <div class="step-item">
+        <div class="step-icon">2</div>
+        <h3>AI Analysis</h3>
+        <p>Our system detects, segments, and classifies the lesion.</p>
+      </div>
+      <div class="step-item">
+        <div class="step-icon">3</div>
+        <h3>Instant Report</h3>
+        <p>Receive a detailed visual report in seconds.</p>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div id="analysis-section" class="analysis-area">
+      <div class="section-header">
+        <h2>Diagnostic Report</h2>
+        <p>Upload an image below to generate your AI Analysis Results</p>
+      </div>
+
+      <div class="analysis-container">
+        <div class="analysis-left">
+          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+            <div id="uploadPlaceholder">
+              <svg class="upload-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
+                </path>
+              </svg>
+              <div class="upload-text-main">Click to Upload</div>
+              <div class="upload-text-sub">or drag and drop image here</div>
+            </div>
+            <img id="resultPreview" class="preview-image" src="" alt="Analyzed Image">
+          </div>
+
+          <button class="reset-btn" onclick="resetAnalysis()">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+              </path>
+            </svg>
+            Start New Analysis
+          </button>
+
+          <div style="text-align: center;">
+            <span id="statusBadge" class="status-badge">Waiting for Image</span>
+            <p style="margin-top: 10px; color: #64748b; font-size: 13px;">File: <span id="resFileName">-</span></p>
+          </div>
+
+          <div class="privacy-note">
+            <svg class="privacy-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+              </path>
+            </svg>
+            <div class="privacy-content">
+              <h4>Data Privacy</h4>
+              <p>Images are processed locally. No data storage.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="analysis-right">
+          <div class="result-tabs">
+            <div class="result-tab active" onclick="switchTab('tab-class')">Classification</div>
+            <div class="result-tab" onclick="switchTab('tab-detect')">Detection</div>
+            <div class="result-tab" onclick="switchTab('tab-seg')">Segmentation</div>
+          </div>
+
+          <div id="tab-class" class="tab-content active">
+            <div class="result-box consensus-card" id="consensusCard">
+              <div
+                style="font-size: 14px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">
+                Final AI Assessment
+              </div>
+              <div class="consensus-val">
+                <span id="finalDiag" style="color: #1e293b;">--</span>
+                <span id="riskBadge" class="risk-badge">--</span>
+              </div>
+              <div class="consensus-sub" id="finalConf">Confidence: --</div>
+            </div>
+            <div class="result-box">
+              <h3>Individual Model Results</h3>
+              <div id="voteContainer">
+                <div class="vote-row"><span class="vote-model">
+                    <div class="vote-dot"></div>ResNet50
+                  </span><span class="vote-res">--</span></div>
+                <div class="vote-row"><span class="vote-model">
+                    <div class="vote-dot"></div>VGG19
+                  </span><span class="vote-res">--</span></div>
+                <div class="vote-row"><span class="vote-model">
+                    <div class="vote-dot"></div>ANN
+                  </span><span class="vote-res">--</span></div>
+                <div class="vote-row"><span class="vote-model">
+                    <div class="vote-dot"></div>SVM
+                  </span><span class="vote-res">--</span></div>
+                <div class="vote-row"><span class="vote-model">
+                    <div class="vote-dot"></div>KNN
+                  </span><span class="vote-res">--</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-detect" class="tab-content">
+            <div class="result-box">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>Lesion Localization</h3>
+                <div class="model-selector-container">
+                  <select id="detSelector" class="model-select" onchange="updateDetectionView()">
+                    <option value="" disabled selected>Select Model</option>
+                  </select>
+                </div>
+              </div>
+              <div class="single-view">
+                <img id="currentDetImage" class="base-image" src="" style="display:none;">
+                <div id="detPlaceholder" class="empty-placeholder">
+                  Upload image to see detection
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-seg" class="tab-content">
+            <div class="result-box">
+              <h3>Lesion Boundary (Overlay)</h3>
+              <div class="checkbox-list" id="segCheckboxes"></div>
+              <div class="single-view" style="min-height: 400px; position: relative;">
+                <div id="segPlaceholder" class="empty-placeholder">
+                  Upload image to see segmentation
+                </div>
+                <img id="segBaseImage" class="base-image" src="" style="display:none;">
+                <div id="segOverlays"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    <svg class="disclaimer-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    This tool is for educational purposes only. Always consult a healthcare professional.
+  </div>
+
+  <script>
+    const SEG_COLORS = {
+      "Fusion (Top 3)": "#a855f7",
+      "SegFormer": "#ef4444",
+      "Attention U-Net": "#3b82f6",
+      "LightweightUNet": "#22c55e",
+      "DeepLabV3+": "#eab308"
+    };
+
+    var globalData = null;
+
+    function scrollToSection(id) {
+      document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function scrollToUpload() {
+      document.getElementById('analysis-section').classList.add('active');
+      setTimeout(() => {
+        document.getElementById('uploadZone').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.result-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    }
+
+    function resetAnalysis() {
+      document.getElementById('fileInput').value = '';
+      document.getElementById('resultPreview').style.display = 'none';
+      document.getElementById('uploadPlaceholder').style.display = 'flex';
+      document.getElementById('statusBadge').className = 'status-badge';
+      document.getElementById('statusBadge').textContent = 'Waiting for Image';
+      document.getElementById('resFileName').textContent = '-';
+
+      document.getElementById('finalDiag').textContent = '--';
+      document.getElementById('finalConf').textContent = 'Confidence: --';
+      document.getElementById('riskBadge').style.display = 'none';
+
+      document.getElementById('consensusCard').classList.remove('active');
+      document.getElementById('finalDiag').classList.remove('active');
+
+      document.getElementById('detPlaceholder').style.display = 'block';
+      document.getElementById('currentDetImage').style.display = 'none';
+
+      document.getElementById('segPlaceholder').style.display = 'block';
+      document.getElementById('segBaseImage').style.display = 'none';
+      document.getElementById('segOverlays').innerHTML = '';
+      document.getElementById('segCheckboxes').innerHTML = '';
+
+      const voteContainer = document.getElementById('voteContainer');
+      voteContainer.innerHTML = `
+                                <div class="vote-row"><span class="vote-model"><div class="vote-dot"></div>ResNet50</span><span class="vote-res">--</span></div>
+                                <div class="vote-row"><span class="vote-model"><div class="vote-dot"></div>VGG19</span><span class="vote-res">--</span></div>
+                                <div class="vote-row"><span class="vote-model"><div class="vote-dot"></div>ANN</span><span class="vote-res">--</span></div>
+                                <div class="vote-row"><span class="vote-model"><div class="vote-dot"></div>SVM</span><span class="vote-res">--</span></div>
+                                <div class="vote-row"><span class="vote-model"><div class="vote-dot"></div>KNN</span><span class="vote-res">--</span></div>
+                            `;
+
+      document.getElementById('detSelector').innerHTML = '<option value="" disabled selected>Select Model</option>';
+      document.getElementById('fileInput').click();
+    }
+
+    function handleFileSelect(input) {
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+          document.getElementById('uploadPlaceholder').style.display = 'none';
+          const preview = document.getElementById('resultPreview');
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+
+          document.getElementById('segBaseImage').src = e.target.result;
+          document.getElementById('resFileName').textContent = file.name;
+          document.getElementById('statusBadge').className = 'status-badge processing';
+          document.getElementById('statusBadge').textContent = "Processing...";
+
+          performAnalysis(file);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    async function performAnalysis(file) {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('/analyze', { method: 'POST', body: formData });
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+          throw new Error(data.error || `Server Error: ${response.status}`);
+        }
+
+        globalData = data;
+
+        document.getElementById('statusBadge').className = 'status-badge complete';
+        document.getElementById('statusBadge').textContent = "Analysis Complete";
+
+        // --- CLASSIFICATION ---
+        if (data.classification) {
+          const cls = data.classification;
+          document.getElementById('finalDiag').textContent = cls.final_diagnosis;
+          document.getElementById('finalConf').textContent = "Confidence: " + cls.confidence;
+
+          const badge = document.getElementById('riskBadge');
+          badge.textContent = cls.risk;
+          badge.className = 'risk-badge ' + (cls.risk === 'Malignant' ? 'malignant' : 'benign');
+          badge.style.display = 'inline-block';
+
+          document.getElementById('consensusCard').classList.add('active');
+          document.getElementById('finalDiag').classList.add('active');
+
+          let votesHtml = "";
+          if (cls.votes) {
+            cls.votes.sort((a, b) => b.confidence - a.confidence);
+            cls.votes.forEach(vote => {
+              const percent = (vote.confidence * 100).toFixed(1) + "%";
+              votesHtml += `
+                                                                <div class="vote-row">
+                                                                    <span class="vote-model"><div class="vote-dot active"></div>${vote.model}</span>
+                                                                    <div style="text-align:right">
+                                                                        <div class="vote-res active">${vote.disease} (${percent})</div>
+                                                                        <span class="vote-sub">${vote.risk}</span>
+                                                                    </div>
+                                                                </div>`;
+            });
+          }
+          document.getElementById('voteContainer').innerHTML = votesHtml;
+        }
+
+        // --- DETECTION ---
+        const detSel = document.getElementById('detSelector');
+        detSel.innerHTML = '';
+        if (data.detection) {
+          const order = ['YOLO', 'FasterRCNN', 'RetinaNet'];
+          order.forEach(key => {
+            if (data.detection[key]) {
+              let label = key;
+              if (key === 'YOLO') label = 'YOLO (Recommended)';
+              detSel.innerHTML += `<option value="${key}">${label}</option>`;
+            }
+          });
+          if (detSel.options.length > 0) {
+            detSel.selectedIndex = 0;
+            updateDetectionView();
+          }
+        }
+
+        // --- SEGMENTATION ---
+        if (data.segmentation) {
+          document.getElementById('segPlaceholder').style.display = 'none';
+          document.getElementById('segBaseImage').style.display = 'block';
+
+          const checkContainer = document.getElementById('segCheckboxes');
+          checkContainer.innerHTML = '';
+          const overlayContainer = document.getElementById('segOverlays');
+          overlayContainer.innerHTML = '';
+
+          const segOrder = ["Fusion (Top 3)", "SegFormer", "Attention U-Net", "LightweightUNet", "DeepLabV3+"];
+
+          segOrder.forEach(key => {
+            if (data.segmentation[key]) {
+              const img = document.createElement('img');
+              img.src = `data:image/png;base64,${data.segmentation[key]}`;
+              img.className = 'layer-image';
+              img.id = `layer-${key.replace(/\s+/g, '')}`;
+              overlayContainer.appendChild(img);
+
+              const item = document.createElement('div');
+              item.className = 'checkbox-item';
+              const color = SEG_COLORS[key] || '#94a3b8';
+
+              let labelText = key;
+              if (key === 'SegFormer') labelText = 'SegFormer (Recommended)';
+              if (key === 'Fusion (Top 3)') labelText = 'Fusion (Top 3 - Recommended)';
+
+              const isChecked = (key === "Fusion (Top 3)" || key === "SegFormer") ? 'checked' : '';
+              if (isChecked) img.classList.add('visible');
+
+              item.innerHTML = `
+                                                                <input type="checkbox" id="chk-${key}" ${isChecked} onchange="toggleLayer('${key.replace(/\s+/g, '')}')">
+                                                                <label for="chk-${key}" class="checkbox-label">${labelText}</label>
+                                                                <div class="color-indicator" style="background:${color}"></div>
+                                                            `;
+              checkContainer.appendChild(item);
+            }
+          });
+        }
+
+      } catch (error) {
+        console.error("Error:", error);
+        alert("Analysis failed: " + error.message);
+      }
+    }
+
+    function updateDetectionView() {
+      if (!globalData) return;
+      const key = document.getElementById('detSelector').value;
+      if (globalData.detection && globalData.detection[key]) {
+        document.getElementById('detPlaceholder').style.display = 'none';
+        const img = document.getElementById('currentDetImage');
+        img.src = `data:image/png;base64,${globalData.detection[key]}`;
+        img.style.display = 'block';
+      }
+    }
+
+    function toggleLayer(cleanKey) {
+      const layer = document.getElementById(`layer-${cleanKey}`);
+      if (layer) layer.classList.toggle('visible');
+    }
+  </script>
+</body>
+
+</html>
