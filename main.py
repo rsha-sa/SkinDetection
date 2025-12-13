@@ -19,7 +19,7 @@ if os.path.exists("models"):
             st.sidebar.write(os.path.join(root, file))
 else:
     st.sidebar.error("❌ 'models' folder NOT found!")
-    
+
 # 1. SETUP & CONFIGURATION
 warnings.filterwarnings("ignore")
 
@@ -262,6 +262,8 @@ else:
             st.markdown("Ready to execute multi-modal fusion pipeline.")
             
             if st.button("RUN DIAGNOSTICS"):
+                manager.clear_memory()
+                
                 with st.status("Initializing Neural Networks...", expanded=True) as status:
                     st.write("Fusing CNN + Texture Features...")
                     fusion_res = manager.predict_fusion_classification(image)
@@ -276,6 +278,9 @@ else:
                 
                 st.session_state['results'] = {'fusion': fusion_res, 'det': det_res, 'seg': seg_res}
                 st.session_state['analysis_done'] = True
+                
+                manager.clear_memory()
+                
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 

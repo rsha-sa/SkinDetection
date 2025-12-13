@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision
 import torchvision.models as models
 import torchvision.transforms as T
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
@@ -11,12 +10,11 @@ import segmentation_models_pytorch as smp
 import numpy as np
 import cv2
 import joblib 
-from sklearn.pipeline import Pipeline
 from transformers import SegformerForSemanticSegmentation, SegformerImageProcessor
 from ultralytics import YOLO
 from PIL import Image, ImageDraw, ImageFont
 import os
-import sys
+import gc
 
 try:
     from src.feature_fusion_helper import FeatureFusionHelperTorch
@@ -24,32 +22,7 @@ except ImportError:
     from feature_fusion_helper import FeatureFusionHelperTorch
 
 # ==========================================
-# 1. CONFIGURATION
-# ==========================================
-LESION_INFO = {
-    0: ("Actinic Keratoses", "Malignant"),
-    1: ("Basal Cell Carcinoma", "Malignant"),
-    2: ("Benign Keratosis", "Benign"),
-    3: ("Dermatofibroma", "Benign"),
-    4: ("Melanoma", "Malignant"),
-    5: ("Melanocytic Nevi", "Benign"),
-    6: ("Vascular Lesion", "Benign")
-}
-LESION_CLASSES = [v[0] for k, v in LESION_INFO.items()]
-
-FUSION_WEIGHTS = {"ResNet50": 0.2616, "VGG19": 0.0931, "ANN": 0.1486, "SVM": 0.1846, "KNN": 0.3121}
-BOX_COLORS = ["#FF3838", "#2C99A8", "#FF701F", "#64748B", "#CFD231", "#48F90A", "#92CC17"]
-
-SEG_COLORS = {
-    "SegFormer": (239, 68, 68, 140),        # Red
-    "Attention U-Net": (59, 130, 246, 140), # Blue
-    "LightweightUNet": (34, 197, 94, 140),  # Green
-    "DeepLabV3+": (234, 179, 8, 140),       # Yellow
-    "Fusion (Top 3)": (168, 85, 247, 160)   # Purple
-}
-
-# ==========================================
-# 2. ARCHITECTURES (Custom LightweightUNet)
+# 1. ARCHITECTURES (Custom LightweightUNet)
 # ==========================================
 class ConvBNReLU(nn.Sequential):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1):
@@ -88,31 +61,26 @@ setattr(__main__, "UpBlock", UpBlock)
 
 
 # ==========================================
-# 3. MODEL MANAGER
+# 2. MODEL MANAGER
 # ==========================================
 class ModelManager:
     def __init__(self):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.loaded_models = {}
         
+        # --- PATH CALCULATION ---
         current_file_path = os.path.abspath(__file__)
         src_dir = os.path.dirname(current_file_path)
-        project_root = os.path.dirname(src_dir)     
+        project_root = os.path.dirname(src_dir)
         
         def get_path(rel_path):
             return os.path.join(project_root, rel_path)
 
-        self.cnn_model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
-        self.cnn_model.fc = nn.Identity(); self.cnn_model.to(self.device).eval()
-        self.cnn_transform = T.Compose([T.Resize((224, 224)), T.ToTensor(), T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-        self.fusion_helper = FeatureFusionHelperTorch(
-            cnn_model=self.cnn_model, device=self.device, cnn_transform=self.cnn_transform,
-            lbp_radius=2, gabor_frequencies=(0.1, 0.3, 0.5), gabor_thetas=(0, np.pi/4, np.pi/2, 3*np.pi/4),
-            hist_color_space="HSV", hist_bins=(16, 16, 16), verbose=False
-        )
-
-        try: self.segformer_processor = SegformerImageProcessor.from_pretrained("preprocessor_config.json")
-        except: self.segformer_processor = SegformerImageProcessor.from_pretrained("nvidia/segformer-b0-finetuned-ade-512-512")
+        # Lazy Initialization Placeholders
+        self.cnn_model = None
+        self.fusion_helper = None
+        self.cnn_transform = None
+        self.segformer_processor = None
         
         self.det_configs = {"FasterRCNN": {"size": 256}, "RetinaNet": {"size": 512}, "YOLO": {"size": 512}}
         
@@ -135,6 +103,42 @@ class ModelManager:
             "VGG19": get_path("models/classification/VGG19.pt")
         }
 
+    # --- MEMORY MANAGEMENT ---
+    def _init_fusion_helper(self):
+        """Initialize Fusion Helper only when needed"""
+        if self.fusion_helper is not None: return
+
+        self.cnn_model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
+        self.cnn_model.fc = nn.Identity()
+        self.cnn_model.to(self.device).eval()
+        
+        self.cnn_transform = T.Compose([
+            T.Resize((224, 224)), 
+            T.ToTensor(), 
+            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+        
+        self.fusion_helper = FeatureFusionHelperTorch(
+            cnn_model=self.cnn_model, device=self.device, cnn_transform=self.cnn_transform,
+            lbp_radius=2, gabor_frequencies=(0.1, 0.3, 0.5), gabor_thetas=(0, np.pi/4, np.pi/2, 3*np.pi/4),
+            hist_color_space="HSV", hist_bins=(16, 16, 16), verbose=False
+        )
+
+    def _init_seg_processor(self):
+        """Initialize SegFormer processor only when needed"""
+        if self.segformer_processor is not None: return
+        try: 
+            self.segformer_processor = SegformerImageProcessor.from_pretrained("preprocessor_config.json")
+        except: 
+            self.segformer_processor = SegformerImageProcessor.from_pretrained("nvidia/segformer-b0-finetuned-ade-512-512")
+
+    def clear_memory(self):
+        """Force garbage collection to free RAM"""
+        self.loaded_models.clear()
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
     def _safe_load_weights(self, model, path):
         try: model.load_state_dict(torch.load(path, map_location=self.device))
         except: 
@@ -145,10 +149,16 @@ class ModelManager:
     def load_model(self, task, model_name):
         key = f"{task}_{model_name}"
         if key in self.loaded_models: return self.loaded_models[key]
+
+        if len(self.loaded_models) > 2: 
+            keys_to_remove = list(self.loaded_models.keys())
+            if keys_to_remove:
+                del self.loaded_models[keys_to_remove[0]]
+                gc.collect()
+
         path = self.seg_files.get(model_name) if task=="segmentation" else (self.det_files.get(model_name) if task=="detection" else self.cls_files.get(model_name))
         
         if not path or not os.path.exists(path):
-            # Print error to logs to help debug
             print(f"❌ Error: Model file not found at {path}")
             return None
 
@@ -159,6 +169,7 @@ class ModelManager:
             try: self.loaded_models[key]=joblib.load(path); return self.loaded_models[key]
             except: return None
 
+        model = None
         if model_name=="Attention U-Net": model=smp.Unet(encoder_name="resnet34", encoder_weights=None, in_channels=3, classes=1, activation="sigmoid", decoder_attention_type="scse"); model=self._safe_load_weights(model, path)
         elif model_name=="LightweightUNet": model=LightweightUNet(pretrained=False); model=self._safe_load_weights(model, path)
         elif model_name=="DeepLabV3+": model=smp.DeepLabV3Plus(encoder_name="resnet34", encoder_weights=None, in_channels=3, classes=1, activation="sigmoid"); model=self._safe_load_weights(model, path)
@@ -170,13 +181,15 @@ class ModelManager:
             except: return None
 
         if isinstance(model, nn.Module): model.to(self.device).eval()
-        self.loaded_models[key] = model
+        if model is not None: self.loaded_models[key] = model
         return model
 
     # --- CLASSIFICATION ---
     def _predict_proba_single(self, image, model_name):
+        self._init_fusion_helper() 
         model = self.load_model("classification", model_name)
         if model is None: return None
+        
         if model_name in ["ANN", "KNN", "SVM"]:
             img_np = np.array(image.convert('RGB'))
             features = self.fusion_helper.fuse_features(img_np, use_cnn=True, use_gabor=True, use_lbp=True, use_ch=True).reshape(1, -1)
@@ -187,6 +200,9 @@ class ModelManager:
             with torch.no_grad(): return F.softmax(model(t), dim=1).cpu().numpy()[0]
 
     def predict_fusion_classification(self, image):
+        FUSION_WEIGHTS = {"ResNet50": 0.2616, "VGG19": 0.0931, "ANN": 0.1486, "SVM": 0.1846, "KNN": 0.3121}
+        LESION_INFO = {0: ("Actinic Keratoses", "Malignant"), 1: ("Basal Cell Carcinoma", "Malignant"), 2: ("Benign Keratosis", "Benign"), 3: ("Dermatofibroma", "Benign"), 4: ("Melanoma", "Malignant"), 5: ("Melanocytic Nevi", "Benign"), 6: ("Vascular Lesion", "Benign")}
+        
         w_sum = np.zeros(7); votes = []
         for name, weight in FUSION_WEIGHTS.items():
             if weight <= 0: continue
@@ -202,17 +218,15 @@ class ModelManager:
     def _draw_clean_boxes(self, image, boxes, scores, labels):
         draw = ImageDraw.Draw(image)
         w_orig, h_orig = image.size
-
         base_scale = max(w_orig, h_orig)
-
         dynamic_font_size = max(20, int(base_scale * 0.035))
-
         dynamic_line_width = max(4, int(base_scale * 0.008))
+        
+        BOX_COLORS = ["#FF3838", "#2C99A8", "#FF701F", "#64748B", "#CFD231", "#48F90A", "#92CC17"]
+        LESION_INFO = {0: ("Actinic Keratoses", "Malignant"), 1: ("Basal Cell Carcinoma", "Malignant"), 2: ("Benign Keratosis", "Benign"), 3: ("Dermatofibroma", "Benign"), 4: ("Melanoma", "Malignant"), 5: ("Melanocytic Nevi", "Benign"), 6: ("Vascular Lesion", "Benign")}
 
-        try:
-            font = ImageFont.truetype("arial.ttf", dynamic_font_size)
-        except:
-            font = ImageFont.load_default()
+        try: font = ImageFont.truetype("arial.ttf", dynamic_font_size)
+        except: font = ImageFont.load_default()
 
         if len(boxes) > 0:
             keep = nms(torch.tensor(boxes), torch.tensor(scores), 0.45)
@@ -221,36 +235,18 @@ class ModelManager:
             labels = labels[keep.cpu().numpy()]
             
         for i in np.argsort(scores):
-            box = boxes[i]
-            score = scores[i]
-            idx = int(labels[i])
-            
+            box = boxes[i]; score = scores[i]; idx = int(labels[i])
             name = LESION_INFO[idx][0] if idx in LESION_INFO else f"Class {idx}"
             color = BOX_COLORS[idx % len(BOX_COLORS)]
             
             draw.rectangle(box, outline=color, width=dynamic_line_width)
-            
             label_text = f"{name} {score:.0%}"
-            
             l, t, r, b = draw.textbbox((box[0], box[1]), label_text, font=font)
+            text_x = box[0]; text_y = box[1] - (b - t) - 10
+            if text_y < 0: text_y = box[1] + 10 
             
-            text_w = r - l
-            text_h = b - t
-            
-            text_x = box[0]
-            text_y = box[1] - text_h - 10
-            
-            if text_y < 0:
-                text_y = box[1] + 10 
-            
-            text_bg_x1 = text_x - 5
-            text_bg_y1 = text_y - 5
-            text_bg_x2 = text_x + text_w + 5
-            text_bg_y2 = text_y + text_h + 5
-            
-            draw.rectangle((text_bg_x1, text_bg_y1, text_bg_x2, text_bg_y2), fill=color)
+            draw.rectangle((text_x - 5, text_y - 5, text_x + (r - l) + 5, text_y + (b - t) + 5), fill=color)
             draw.text((text_x, text_y), label_text, fill="white", font=font)
-            
         return image
 
     def predict_detection(self, image, model_name):
@@ -258,6 +254,7 @@ class ModelManager:
         if model is None: return image
         w_orig, h_orig = image.size; ts = self.det_configs[model_name]["size"]
         img_draw = image.copy()
+        
         if model_name == "YOLO":
             try:
                 res = model(image, imgsz=ts, verbose=False)[0]
@@ -276,12 +273,19 @@ class ModelManager:
             return self._draw_clean_boxes(img_draw, boxes, scores, labels)
         return img_draw
 
-    # --- SEGMENTATION  ---
+    def predict_multi_detection(self, image):
+        r = {}
+        for n in self.det_files: 
+            try: r[n] = self.predict_detection(image, n)
+            except: r[n] = image
+        return r
+
+    # --- SEGMENTATION ---
     def _predict_seg_raw(self, image, model_name):
+        if model_name == "SegFormer": self._init_seg_processor() 
         model = self.load_model("segmentation", model_name)
         if model is None: return None
         
-        # SegFormer
         if model_name == "SegFormer":
             resized = image.resize((256, 256))
             i = self.segformer_processor(images=resized, return_tensors="pt")
@@ -290,8 +294,6 @@ class ModelManager:
                 l = model(**i).logits
                 l = F.interpolate(l, size=image.size[::-1], mode="bilinear", align_corners=False)
                 p = F.softmax(l, dim=1)[:, 1, :, :].cpu().numpy().squeeze()
-        
-        # Others
         else:
             n = np.array(image.resize((256, 256)))
             t = torch.from_numpy(n).float().div(255.0).permute(2, 0, 1).unsqueeze(0).to(self.device)
@@ -317,28 +319,21 @@ class ModelManager:
         p_seg = self._predict_seg_raw(image, "SegFormer")
         p_att = self._predict_seg_raw(image, "Attention U-Net")
         p_hyb = self._predict_seg_raw(image, "LightweightUNet")
-        
         if any(x is None for x in [p_seg, p_att, p_hyb]): return None
         
         fused_prob = (0.60 * p_seg) + (0.20 * p_att) + (0.20 * p_hyb)
         return self._create_transparent_mask(fused_prob, color)
 
     def predict_multi_segmentation(self, image):
+        SEG_COLORS = {
+            "SegFormer": (239, 68, 68, 140), "Attention U-Net": (59, 130, 246, 140),
+            "LightweightUNet": (34, 197, 94, 140), "DeepLabV3+": (234, 179, 8, 140),
+            "Fusion (Top 3)": (168, 85, 247, 160)
+        }
         r = {}
-        # 1. Individual Models
         for name in self.seg_files:
             mask = self.predict_segmentation_layer(image, name, SEG_COLORS.get(name, (255,255,255,100)))
             if mask: r[name] = mask
-        
-        # 2. Fusion
         fusion_mask = self.predict_fusion_segmentation_layer(image, SEG_COLORS["Fusion (Top 3)"])
         if fusion_mask: r["Fusion (Top 3)"] = fusion_mask
-        
-        return r
-    
-    def predict_multi_detection(self, image):
-        r = {}
-        for n in self.det_files: 
-            try: r[n] = self.predict_detection(image, n)
-            except: r[n] = image
         return r

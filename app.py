@@ -1,5 +1,6 @@
 import os
 import base64
+import gc
 from io import BytesIO
 from flask import Flask, render_template, request, jsonify
 from PIL import Image
@@ -11,10 +12,10 @@ app = Flask(__name__)
 global_model_manager = None
 
 def get_model_manager():
-    """Loads the model only when needed, not at startup."""
+    """Loads the model manager structure only when needed."""
     global global_model_manager
     if global_model_manager is None:
-        print("⏳ Loading AI Models for the first time...")
+        print("⏳ Loading AI Model Manager...")
         try:
             ensure_models()
             global_model_manager = ModelManager()
@@ -49,8 +50,10 @@ def analyze():
         return jsonify({'error': 'No file selected'}), 400
 
     try:
+        manager.clear_memory()
+
         image = Image.open(file.stream).convert('RGB')
-        
+
         fusion_result = manager.predict_fusion_classification(image)
         
         det_results_raw = manager.predict_multi_detection(image)
@@ -64,6 +67,10 @@ def analyze():
             'detection': det_response,     
             'segmentation': seg_response   
         }
+
+        manager.clear_memory()
+        
+        gc.collect()
 
         return jsonify(response_data)
 
