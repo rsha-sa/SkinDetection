@@ -91,10 +91,20 @@ setattr(__main__, "UpBlock", UpBlock)
 # 3. MODEL MANAGER
 # ==========================================
 class ModelManager:
+   class ModelManager:
     def __init__(self):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.loaded_models = {}
         
+        # --- PATH FIX: Get absolute path to the project root ---
+        # This ensures it works on Streamlit Cloud regardless of working directory
+        current_file_path = os.path.abspath(__file__)
+        src_dir = os.path.dirname(current_file_path) # .../src
+        project_root = os.path.dirname(src_dir)      # .../ (root)
+        
+        def get_path(rel_path):
+            return os.path.join(project_root, rel_path)
+
         # Classification Helper
         self.cnn_model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
         self.cnn_model.fc = nn.Identity(); self.cnn_model.to(self.device).eval()
@@ -110,19 +120,24 @@ class ModelManager:
         
         self.det_configs = {"FasterRCNN": {"size": 256}, "RetinaNet": {"size": 512}, "YOLO": {"size": 512}}
         
-        # Mapped Names
+        # --- UPDATED PATHS using get_path() ---
         self.seg_files = {
-            "Attention U-Net": "models/segmentation/AttentionUNet.pth", 
-            "LightweightUNet": "models/segmentation/LightweightUNet.pth",
-            "SegFormer": "models/segmentation/SegFormer.pth", 
-            "DeepLabV3+": "models/segmentation/DeepLabV3Plus.pth"
+            "Attention U-Net": get_path("models/segmentation/AttentionUNet.pth"), 
+            "LightweightUNet": get_path("models/segmentation/LightweightUNet.pth"),
+            "SegFormer": get_path("models/segmentation/SegFormer.pth"), 
+            "DeepLabV3+": get_path("models/segmentation/DeepLabV3Plus.pth")
         }
         self.det_files = {
-            "FasterRCNN": "models/detection/FasterRCNN.pt", "RetinaNet": "models/detection/RetinaNet.pt", "YOLO": "models/detection/YOLO.pt"
+            "FasterRCNN": get_path("models/detection/FasterRCNN.pt"), 
+            "RetinaNet": get_path("models/detection/RetinaNet.pt"), 
+            "YOLO": get_path("models/detection/YOLO.pt")
         }
         self.cls_files = {
-            "ANN": "models/classification/ANN.pkl", "KNN": "models/classification/KNN.pkl", "SVM": "models/classification/SVM.pkl",
-            "ResNet50": "models/classification/ResNet50.pt", "VGG19": "models/classification/VGG19.pt"
+            "ANN": get_path("models/classification/ANN.pkl"), 
+            "KNN": get_path("models/classification/KNN.pkl"), 
+            "SVM": get_path("models/classification/SVM.pkl"),
+            "ResNet50": get_path("models/classification/ResNet50.pt"), 
+            "VGG19": get_path("models/classification/VGG19.pt")
         }
 
     def _safe_load_weights(self, model, path):
