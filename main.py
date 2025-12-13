@@ -330,7 +330,8 @@ else:
             with t3:
                 c_s1, c_s2 = st.columns([1, 1.5])
                 
-                seg_order = ["Fusion (Top 3)", "SegFormer", "Attention U-Net V2", "HybridNet V1", "DeepLabV3+ V2"]
+                seg_order = ["Fusion (Top 3)", "SegFormer", "Attention U-Net", "LightweightUNet", "DeepLabV3+"]
+                
                 avail_seg = [k for k in seg_order if k in res['seg']]
                 for k in res['seg'].keys():
                     if k not in avail_seg: avail_seg.append(k)
@@ -340,20 +341,20 @@ else:
                 with c_s1:
                     st.caption("Select layers to overlay:")
                     for k in avail_seg:
-                        clean = k.replace("🏆 ", "")
-                        if "SegFormer" in clean: clean += " (Best Single)"
-                        if "Fusion" in clean: clean += " (Recommended)"
+                        label = k
+                        if "SegFormer" in k: label += " (Best Single)"
+                        if "Fusion" in k: label += " (Recommended)"
                         
                         def_val = ("Fusion" in k or "SegFormer" in k)
                         
                         ui_dot = "⚪"
                         if "SegFormer" in k: ui_dot = "🔴"
                         elif "Attention" in k: ui_dot = "🔵"
-                        elif "Hybrid" in k: ui_dot = "🟢"
+                        elif "Lightweight" in k: ui_dot = "🟢"
                         elif "DeepLab" in k: ui_dot = "🟡"
                         elif "Fusion" in k: ui_dot = "🟣"
                         
-                        if st.checkbox(f"{ui_dot} {clean}", value=def_val, key=k):
+                        if st.checkbox(f"{ui_dot} {label}", value=def_val, key=k):
                             sel_masks.append(k)
                             
                 with c_s2:
