@@ -965,14 +965,12 @@
       }
     }
 
-    /* Mobile Phone (Max Width 600px) */
     @media (max-width: 600px) {
       .container {
         grid-template-columns: 1fr;
         padding: 20px 15px;
       }
 
-      /* HERO TEXT */
       h1 {
         font-size: 40px;
         margin-bottom: 20px;
@@ -996,27 +994,21 @@
         font-size: 16px;
       }
 
-      /* --- VISUALIZATION SECTION FIX: RESERVE HEIGHT --- */
-
       .right-content {
-        /* Set the visualization to appear first on mobile */
         order: -1;
         display: flex;
         flex-direction: column;
-        /* Stack children vertically */
         align-items: center;
         padding-bottom: 0;
       }
 
       .visualization-container {
-        /* Set explicit size using VW (for responsiveness) */
         width: 90vw;
         height: 90vw;
         max-width: 350px;
         max-height: 350px;
         margin: 0 auto;
         background: none;
-        /* IMPORTANT: Ensure the visualization area is reserved */
         position: relative;
       }
 
@@ -1026,7 +1018,6 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        /* Re-center the absolute elements */
       }
 
       .middle-ring {
@@ -1037,19 +1028,14 @@
         inset: 40px;
       }
 
-      /* CONFIDENCE CARD FIX: REVERT TO STATIC FLOW */
       .confidence-card {
-        /* Make the card VISIBLE */
         display: block !important;
-        /* Force into the normal document flow */
         position: static !important;
-        /* Remove overlap risks */
         bottom: auto !important;
         left: auto !important;
 
         width: 100%;
         margin-top: 20px;
-        /* Space it below the visualization container */
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
       }
 
@@ -1058,7 +1044,6 @@
         display: none;
       }
 
-      /* REPORT SECTION */
       .content-card {
         margin-top: 20px;
         border-radius: 20px;
@@ -1088,7 +1073,6 @@
         padding: 20px;
       }
 
-      /* DISCLAIMER */
       .disclaimer {
         bottom: 10px;
         padding: 10px 20px;
@@ -1444,13 +1428,13 @@
             cls.votes.forEach(vote => {
               const percent = (vote.confidence * 100).toFixed(1) + "%";
               votesHtml += `
-                                                                <div class="vote-row">
-                                                                    <span class="vote-model"><div class="vote-dot active"></div>${vote.model}</span>
-                                                                    <div style="text-align:right">
-                                                                        <div class="vote-res active">${vote.disease} (${percent})</div>
-                                                                        <span class="vote-sub">${vote.risk}</span>
-                                                                    </div>
-                                                                </div>`;
+                          <div class="vote-row">
+                              <span class="vote-model"><div class="vote-dot active"></div>${vote.model}</span>
+                              <div style="text-align:right">
+                                  <div class="vote-res active">${vote.disease} (${percent})</div>
+                                  <span class="vote-sub">${vote.risk}</span>
+                              </div>
+                          </div>`;
             });
           }
           document.getElementById('voteContainer').innerHTML = votesHtml;
@@ -1506,10 +1490,10 @@
               if (isChecked) img.classList.add('visible');
 
               item.innerHTML = `
-                                                                <input type="checkbox" id="chk-${key}" ${isChecked} onchange="toggleLayer('${key.replace(/\s+/g, '')}')">
-                                                                <label for="chk-${key}" class="checkbox-label">${labelText}</label>
-                                                                <div class="color-indicator" style="background:${color}"></div>
-                                                            `;
+                  <input type="checkbox" id="chk-${key}" ${isChecked} onchange="toggleLayer('${key.replace(/\s+/g, '')}')">
+                  <label for="chk-${key}" class="checkbox-label">${labelText}</label>
+                  <div class="color-indicator" style="background:${color}"></div>
+              `;
               checkContainer.appendChild(item);
             }
           });

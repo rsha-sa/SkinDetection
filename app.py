@@ -3,6 +3,8 @@ import base64
 from io import BytesIO
 from flask import Flask, render_template, request, jsonify
 from PIL import Image
+from src.model_downloader import ensure_models
+
 from src.model_loader import ModelManager
 
 app = Flask(__name__)
@@ -10,6 +12,7 @@ app = Flask(__name__)
 # Initialize AI Core
 print("Initializing AI Core...")
 try:
+    ensure_models()  
     model_manager = ModelManager()
     print("✅ AI Core Ready.")
 except Exception as e:

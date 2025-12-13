@@ -4,9 +4,16 @@ import pandas as pd
 import numpy as np
 from src.model_loader import ModelManager, LightweightUNet, UpBlock, ConvBNReLU
 import warnings
+from src.model_downloader import ensure_models
+
 
 # 1. SETUP & CONFIGURATION
 warnings.filterwarnings("ignore")
+
+#load models
+with st.spinner("Preparing AI models..."):
+    ensure_models()
+
 
 st.set_page_config(
     layout="wide", 
