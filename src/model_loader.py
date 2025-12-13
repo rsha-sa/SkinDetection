@@ -186,16 +186,20 @@ class ModelManager:
 
     # --- DETECTION ---
     def _draw_clean_boxes(self, image, boxes, scores, labels):
-        draw = ImageDraw.Draw(image)   
+        draw = ImageDraw.Draw(image)
         w_orig, h_orig = image.size
-        FONT_SCALE_FACTOR = 0.026 
-        min_font_size = 14 
-        dynamic_font_size = max(min_font_size, int(w_orig * FONT_SCALE_FACTOR))
 
-        try: 
-            font = ImageFont.truetype("arial.ttf", dynamic_font_size) 
-        except: 
+        base_scale = max(w_orig, h_orig)
+
+        dynamic_font_size = max(20, int(base_scale * 0.035))
+
+        dynamic_line_width = max(4, int(base_scale * 0.008))
+
+        try:
+            font = ImageFont.truetype("arial.ttf", dynamic_font_size)
+        except:
             font = ImageFont.load_default()
+
         if len(boxes) > 0:
             keep = nms(torch.tensor(boxes), torch.tensor(scores), 0.45)
             boxes = boxes[keep.cpu().numpy()]
@@ -209,18 +213,22 @@ class ModelManager:
             
             name = LESION_INFO[idx][0] if idx in LESION_INFO else f"Class {idx}"
             color = BOX_COLORS[idx % len(BOX_COLORS)]
-            draw.rectangle(box, outline=color, width=6)
+            
+            draw.rectangle(box, outline=color, width=dynamic_line_width)
             
             label_text = f"{name} {score:.0%}"
+            
             l, t, r, b = draw.textbbox((box[0], box[1]), label_text, font=font)
             
-            text_padding = 10
             text_w = r - l
             text_h = b - t
+            
             text_x = box[0]
-            text_y = box[1] - text_h - text_padding
+            text_y = box[1] - text_h - 10
+            
             if text_y < 0:
-                text_y = box[1] + text_padding 
+                text_y = box[1] + 10 
+            
             text_bg_x1 = text_x - 5
             text_bg_y1 = text_y - 5
             text_bg_x2 = text_x + text_w + 5
