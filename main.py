@@ -6,7 +6,20 @@ from src.model_loader import ModelManager, LightweightUNet, UpBlock, ConvBNReLU
 import warnings
 from src.model_downloader import ensure_models
 
+import os
 
+# --- DEBUGGING: CHECK FILES ---
+st.sidebar.write("### Debugging File System")
+st.sidebar.write(f"Current Working Directory: {os.getcwd()}")
+
+if os.path.exists("models"):
+    st.sidebar.success("Found 'models' folder")
+    for root, dirs, files in os.walk("models"):
+        for file in files:
+            st.sidebar.write(os.path.join(root, file))
+else:
+    st.sidebar.error("❌ 'models' folder NOT found!")
+    
 # 1. SETUP & CONFIGURATION
 warnings.filterwarnings("ignore")
 
