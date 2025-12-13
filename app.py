@@ -50,8 +50,6 @@ def analyze():
         return jsonify({'error': 'No file selected'}), 400
 
     try:
-        manager.clear_memory()
-
         image = Image.open(file.stream).convert('RGB')
 
         fusion_result = manager.predict_fusion_classification(image)
@@ -67,11 +65,6 @@ def analyze():
             'detection': det_response,     
             'segmentation': seg_response   
         }
-
-        manager.clear_memory()
-        
-        gc.collect()
-
         return jsonify(response_data)
 
     except Exception as e:
