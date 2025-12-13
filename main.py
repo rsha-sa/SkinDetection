@@ -330,7 +330,7 @@ else:
             with t3:
                 c_s1, c_s2 = st.columns([1, 1.5])
                 
-                seg_order = ["🏆 Fusion (Top 3)", "SegFormer", "Attention U-Net V2", "HybridNet V1", "DeepLabV3+ V2"]
+                seg_order = ["Fusion (Top 3)", "SegFormer", "Attention U-Net V2", "HybridNet V1", "DeepLabV3+ V2"]
                 avail_seg = [k for k in seg_order if k in res['seg']]
                 for k in res['seg'].keys():
                     if k not in avail_seg: avail_seg.append(k)
