@@ -41,11 +41,11 @@ FUSION_WEIGHTS = {"ResNet50": 0.2616, "VGG19": 0.0931, "ANN": 0.1486, "SVM": 0.1
 BOX_COLORS = ["#FF3838", "#2C99A8", "#FF701F", "#64748B", "#CFD231", "#48F90A", "#92CC17"]
 
 SEG_COLORS = {
-    "SegFormer": (239, 68, 68, 140),       # Red
+    "SegFormer": (239, 68, 68, 140),        # Red
     "Attention U-Net": (59, 130, 246, 140), # Blue
-    "LightweightUNet": (34, 197, 94, 140),    # Green
-    "DeepLabV3+": (234, 179, 8, 140),   # Yellow
-    "Fusion (Top 3)": (168, 85, 247, 160) # Purple
+    "LightweightUNet": (34, 197, 94, 140),  # Green
+    "DeepLabV3+": (234, 179, 8, 140),       # Yellow
+    "Fusion (Top 3)": (168, 85, 247, 160)   # Purple
 }
 
 # ==========================================
@@ -91,21 +91,17 @@ setattr(__main__, "UpBlock", UpBlock)
 # 3. MODEL MANAGER
 # ==========================================
 class ModelManager:
-   class ModelManager:
     def __init__(self):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.loaded_models = {}
         
-        # --- PATH FIX: Get absolute path to the project root ---
-        # This ensures it works on Streamlit Cloud regardless of working directory
         current_file_path = os.path.abspath(__file__)
-        src_dir = os.path.dirname(current_file_path) # .../src
-        project_root = os.path.dirname(src_dir)      # .../ (root)
+        src_dir = os.path.dirname(current_file_path)
+        project_root = os.path.dirname(src_dir)     
         
         def get_path(rel_path):
             return os.path.join(project_root, rel_path)
 
-        # Classification Helper
         self.cnn_model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
         self.cnn_model.fc = nn.Identity(); self.cnn_model.to(self.device).eval()
         self.cnn_transform = T.Compose([T.Resize((224, 224)), T.ToTensor(), T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
@@ -120,12 +116,11 @@ class ModelManager:
         
         self.det_configs = {"FasterRCNN": {"size": 256}, "RetinaNet": {"size": 512}, "YOLO": {"size": 512}}
         
-        # --- UPDATED PATHS using get_path() ---
         self.seg_files = {
-            "Attention U-Net": get_path("models/segmentation/AttentionUNet.pth"), 
-            "LightweightUNet": get_path("models/segmentation/LightweightUNet.pth"),
-            "SegFormer": get_path("models/segmentation/SegFormer.pth"), 
-            "DeepLabV3+": get_path("models/segmentation/DeepLabV3Plus.pth")
+            "Attention U-Net": get_path("models/Segmentation/AttentionUNet.pth"), 
+            "LightweightUNet": get_path("models/Segmentation/LightweightUNet.pth"),
+            "SegFormer": get_path("models/Segmentation/SegFormer.pth"), 
+            "DeepLabV3+": get_path("models/Segmentation/DeepLabV3Plus.pth")
         }
         self.det_files = {
             "FasterRCNN": get_path("models/detection/FasterRCNN.pt"), 
@@ -151,7 +146,11 @@ class ModelManager:
         key = f"{task}_{model_name}"
         if key in self.loaded_models: return self.loaded_models[key]
         path = self.seg_files.get(model_name) if task=="segmentation" else (self.det_files.get(model_name) if task=="detection" else self.cls_files.get(model_name))
-        if not path or not os.path.exists(path): return None
+        
+        if not path or not os.path.exists(path):
+            # Print error to logs to help debug
+            print(f"❌ Error: Model file not found at {path}")
+            return None
 
         if model_name=="YOLO": 
             try: self.loaded_models[key]=YOLO(path); return self.loaded_models[key]
