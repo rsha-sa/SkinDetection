@@ -5,7 +5,6 @@ import shutil
 
 MODEL_DIR = "models"
 ZIP_PATH = "models.zip"
-DRIVE_FILE_ID = "1q0Ez5qk7YPJAzFd0SJ_xYmC1TqGMEjoy"
 
 def ensure_models():
     if os.path.exists(MODEL_DIR) and os.path.isdir(MODEL_DIR):
@@ -15,7 +14,7 @@ def ensure_models():
 
     print("--- STARTING MODEL DOWNLOAD ---")
     
-    url = f"https://drive.google.com/uc?id={DRIVE_FILE_ID}"
+    url = "https://drive.google.com/file/d/1q0Ez5qk7YPJAzFd0SJ_xYmC1TqGMEjoy"
     output = gdown.download(url, ZIP_PATH, quiet=False, fuzzy=True)
 
     if not os.path.exists(ZIP_PATH):
