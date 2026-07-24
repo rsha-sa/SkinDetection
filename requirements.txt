@@ -13,5 +13,5 @@ scikit-learn
 joblib
 scikit-image
 flask
-gdown
+gdown>=4.4.0
 gunicorn
