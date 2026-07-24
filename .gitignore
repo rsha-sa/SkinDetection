@@ -11,3 +11,6 @@ __pycache__/
 # Environment
 .env
 venv/
+
+
+src/model_downloader.py
