@@ -9,6 +9,8 @@ This project is an end-to-end artificial intelligence system designed to assist 
 
 You can test the live application here: **[Skin Detection Streamlit App](https://skindetection.streamlit.app/)**
 
+> **Note:** The app is on a free host. Please allow a moment for it to wake up if inactive.
+
 ## Key Features & Model Architecture
 The system performs three distinct computer vision tasks, rigorously evaluated across 12 different architectures. To maximize diagnostic reliability, the final pipeline utilizes **Weighted Decision Fusion** to aggregate predictions from the top-performing models.
 
